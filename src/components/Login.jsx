@@ -11,7 +11,7 @@ export default function Login() {
   const [loginIdentifier, setLoginIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [username, setUsername] = useState("");
+  const [loading, setLoading] = useState(false);
 
   // Only used for signup
   const [firstName, setFirstName] = useState("");
@@ -28,7 +28,8 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg("");
 
-    let loginEmail = loginIdentifier;
+    let loginEmail = loginIdentifier.trim();
+    const trimmedPassword = password.trim();
 
     // If it's not an email, treat it as a username and look up the email from profiles
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -43,34 +44,34 @@ export default function Login() {
 
       if (profileError) {
         toast.error("Something went wrong checking that username.");
-        console.error("Error looking up username:", profileError.message);
         setErrorMsg("Error checking username.");
+        setPassword("");
         return;
       }
 
-      if (!profile || !profile.email) {
+      if (!profile?.email) {
         toast.error("Username not found or email missing.");
         setErrorMsg("Username not found or email missing.");
+        setPassword("");
         return;
       }
 
       loginEmail = profile.email;
     }
-
-    console.log("Logging in with email:", loginEmail);
-
+    setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
-      password,
+      password: trimmedPassword,
     });
+    setLoading(false);
 
     if (error) {
       toast.error(error.message);
       setErrorMsg(error.message);
     } else {
-      // window.location.reload();
+      // window.location.reload(); //Old way. Refreshes page but causes flicker
       router.refresh(); // Soft refreshes data without page flicker
-      toast.success("Welcome back!")
+      toast.success("Welcome back!");
     }
   };
 
@@ -79,25 +80,19 @@ export default function Login() {
     e.preventDefault();
     setErrorMsg("");
 
-    console.log("→ handleSignUp:", {
-      firstName,
-      lastName,
-      usernameSignup,
-      email,
-      password,
-    });
+    const trimmedFirstName = firstName.trim();
+    const trimmedLastName = lastName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedUsernameSignup = usernameSignup.trim().toLowerCase();
 
     const { data: existing, error: lookupError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("username", usernameSignup)
+      .eq("username", trimmedUsernameSignup)
       .maybeSingle();
 
     if (lookupError) {
-      console.error(
-        "Error checking username:",
-        lookupError.message || lookupError
-      );
       setErrorMsg("There was an issue checking that username.");
       return;
     }
@@ -106,27 +101,29 @@ export default function Login() {
       setErrorMsg("Username is already taken.");
       return;
     }
-
+    setLoading(true);
     const { error } = await supabase.auth.signUp({
-      email: email,
-      password,
+      email: trimmedEmail,
+      password: trimmedPassword,
       options: {
         data: {
-          first_name: firstName,
-          last_name: lastName,
-          username: usernameSignup,
+          first_name: trimmedFirstName,
+          last_name: trimmedLastName,
+          username: trimmedUsernameSignup,
         },
       },
     });
+    setLoading(false);
 
     if (error) {
       toast.error(error.message);
       setErrorMsg(error.message);
     } else {
       // window.location.reload();
-      // alert('Signup succeeded! Check your DB and profiles table.');
       router.refresh(); // Soft refreshes data without page flicker
-      toast.success("Account created! Check your email to verify your account and login.");
+      toast.success(
+        "Account created! Check your email to verify your account and login."
+      );
     }
   };
 
@@ -149,7 +146,6 @@ export default function Login() {
       .maybeSingle();
 
     if (error) {
-      console.error("Error checking username:", error.message);
       setUsernameAvailable(null);
     } else {
       setUsernameAvailable(!existing); // true = available
@@ -182,6 +178,7 @@ export default function Login() {
                 Email or Username
               </label>
               <input
+                autoFocus
                 id="loginIdentifier"
                 type="text"
                 required
@@ -212,9 +209,10 @@ export default function Login() {
 
             <button
               type="submit"
+              disabled={loading}
               className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition"
             >
-              Sign In
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
         ) : (
@@ -227,6 +225,7 @@ export default function Login() {
                 First Name
               </label>
               <input
+                autoFocus
                 id="firstName"
                 type="text"
                 required
@@ -266,7 +265,9 @@ export default function Login() {
                 type="text"
                 required
                 value={usernameSignup}
-                onChange={(e) => setUsernameSignup(e.target.value)}
+                onChange={(e) =>
+                  setUsernameSignup(e.target.value.toLowerCase())
+                }
                 onBlur={handleUsernameBlur}
                 className="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
@@ -343,11 +344,19 @@ export default function Login() {
               <button
                 onClick={() => {
                   setIsSigningUp(false);
+                  setLoginIdentifier("");
+                  setPassword("");
                   setErrorMsg("");
+                  setFirstName("");
+                  setLastName("");
+                  setEmail("");
+                  setPassword("");
+                  setUsernameSignup("");
+                  setUsernameAvailable(null);
                 }}
                 className="text-indigo-600 hover:text-indigo-700 font-medium"
               >
-                Sign in
+                {loading ? "Signing in..." : "Sign In"}
               </button>
             </>
           ) : (
@@ -357,6 +366,8 @@ export default function Login() {
                 onClick={() => {
                   setIsSigningUp(true);
                   setErrorMsg("");
+                  setLoginIdentifier("");
+                  setPassword("");
                 }}
                 className="text-indigo-600 hover:text-indigo-700 font-medium"
               >

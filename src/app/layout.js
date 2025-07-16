@@ -4,6 +4,8 @@ import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "sonner";
 import Header from "@/components/Header";
+import ConditionalHeader from "@/components/ConditionalHeader";
+
 
 export const metadata = {
   title: "Here We Grow",
@@ -15,9 +17,7 @@ export default function RootLayout({ children }) {
       <body>
         <AuthProvider>
           <div className="max-w-xl mx-auto">
-            <Header>
-              <Navbar />
-            </Header>
+            <ConditionalHeader />
 
             {children}
           </div>

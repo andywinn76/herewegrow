@@ -40,7 +40,9 @@ export default function EntryList({
       );
 
     const matchesBed =
-      bedFilter === "" || (entry.bed ?? "No bed assigned") === bedFilter;
+      bedFilter === "" ||
+      (bedFilter === "__none__" && !entry.bed) ||
+      entry.bed === bedFilter;
 
     return matchesType && matchesTag && matchesBed;
   });
@@ -88,17 +90,14 @@ export default function EntryList({
           className="border p-2 rounded w-full sm:w-1/2"
         >
           <option value="">All beds</option>
-          {[...new Set(entries.map((e) => e.bed ?? "No bed assigned"))]
-            .sort((a, b) => {
-              if (a === "No bed assigned") return 1;
-              if (b === "No bed assigned") return -1;
-              return a.localeCompare(b);
-            })
+          {[...beds]
+            .sort((a, b) => a.name.localeCompare(b.name))
             .map((bed) => (
-              <option key={bed} value={bed}>
-                {bed}
+              <option key={bed.id} value={bed.name}>
+                {bed.name}
               </option>
             ))}
+          <option value="__none__">No bed assigned</option>
         </select>
       </div>
       {filteredEntries.length === 0 && (
