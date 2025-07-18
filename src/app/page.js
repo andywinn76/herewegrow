@@ -13,9 +13,11 @@ import {
   toggleEntryCompletion,
 } from "@/lib/entries";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function App() {
   const user = useUser();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
 
@@ -92,7 +94,8 @@ export default function App() {
 
   // If no logged‐in user, show the Login form
   if (!user) {
-    return <Login />;
+    router.push("/login");
+    return null;
   }
 
   // Toggle “completed” on an existing entry

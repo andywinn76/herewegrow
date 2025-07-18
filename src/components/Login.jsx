@@ -127,6 +127,31 @@ export default function Login() {
     }
   };
 
+  const handlePasswordReset = async () => {
+    const email = loginIdentifier.trim();
+
+    if (!email) {
+      toast.error("Please enter your email above first.");
+      return;
+    }
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${location.origin}/reset`, // customize this route
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Check your email for a password reset link.");
+    }
+  };
+
   const handleUsernameBlur = async (e) => {
     const raw = e.target.value.trim().toLowerCase();
     setUsernameSignup(raw); // update state cleanly
@@ -214,6 +239,15 @@ export default function Login() {
             >
               {loading ? "Signing in..." : "Sign In"}
             </button>
+            <p className="text-sm text-center">
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium mt-2"
+                >
+                  Forgot your password?
+                </button>
+              </p>
           </form>
         ) : (
           <form onSubmit={handleSignUp} className="space-y-5">
@@ -358,6 +392,7 @@ export default function Login() {
               >
                 {loading ? "Signing in..." : "Sign In"}
               </button>
+              
             </>
           ) : (
             <>

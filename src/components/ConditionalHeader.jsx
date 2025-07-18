@@ -8,7 +8,7 @@ export default function ConditionalHeader() {
   const pathname = usePathname();
 
   // Hide header on login page
-  const hideHeaderRoutes = ["/login"];
+  const hideHeaderRoutes = ["/login", "/reset"];
   const shouldHideHeader = hideHeaderRoutes.includes(pathname);
 
   if (shouldHideHeader) return null;

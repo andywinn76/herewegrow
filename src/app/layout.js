@@ -3,7 +3,6 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Toaster } from "sonner";
-import Header from "@/components/Header";
 import ConditionalHeader from "@/components/ConditionalHeader";
 
 
