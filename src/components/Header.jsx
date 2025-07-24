@@ -131,7 +131,7 @@ import { toast } from "sonner";
 import { LogOut } from "lucide-react";
 
 export default function Header({ children }) {
-  const user = useUser();
+  const { user, userLoading } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -150,9 +150,13 @@ export default function Header({ children }) {
     }
   };
 
-  const displayName = user?.user_metadata?.first_name
-    ? `${user.user_metadata.first_name}!`
-    : "Gardener!";
+  // const displayName = user?.user_metadata?.first_name
+  //   ? `${user.user_metadata.first_name}!`
+  //   : "Gardener!";
+  const displayName =
+    !userLoading && user?.user_metadata?.first_name
+      ? `${user.user_metadata.first_name}!`
+      : "Gardener!";
 
   return (
     <header className="w-full bg-white shadow-sm">

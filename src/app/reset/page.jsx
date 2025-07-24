@@ -1,14 +1,16 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
-import { toast } from 'sonner';
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner";
 
 export default function ResetPassword() {
   const router = useRouter();
-  const [newPassword, setNewPassword] = useState('');
+  const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [sessionChecked, setSessionChecked] = useState(false);
+
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
     // Supabase handles token from the URL automatically
@@ -18,8 +20,8 @@ export default function ResetPassword() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        toast.error('Reset link expired or invalid.');
-        router.push('/login');
+        toast.error("Reset link expired or invalid.");
+        setShouldRedirect(true); // triggers redirect after render
       } else {
         setSessionChecked(true);
       }
@@ -27,6 +29,12 @@ export default function ResetPassword() {
 
     checkSession();
   }, [router]);
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      router.push("/login");
+    }
+  }, [shouldRedirect, router]);
 
   const handlePasswordUpdate = async (e) => {
     e.preventDefault();
@@ -39,10 +47,20 @@ export default function ResetPassword() {
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      if (
+        msg.includes("one letter") ||
+        msg.includes("one number") ||
+        msg.includes("6 characters")
+      ) {
+        toast.error(
+          "Password must include at least one letter, one number, and be six or more characters long."
+        );
+      } else {
+        toast.error(error.message);
+      }
     } else {
-      toast.success('Password updated. You are now signed in!');
-      router.push('/');
+      toast.success("Password updated. You are now signed in!");
+      router.push("/");
     }
   };
 
@@ -68,7 +86,7 @@ export default function ResetPassword() {
           disabled={loading}
           className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition"
         >
-          {loading ? 'Updating...' : 'Update Password'}
+          {loading ? "Updating..." : "Update Password"}
         </button>
       </form>
     </div>
