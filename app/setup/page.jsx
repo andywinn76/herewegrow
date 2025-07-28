@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@/components/AuthProvider";
+import useRequireAuth from "@/hooks/useRequireAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchBeds, upsertBed, updateBed } from "@/lib/beds";
@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 
 export default function SetupPage() {
-  const user = useUser();
+  const { user, userLoading } = useRequireAuth();
   const router = useRouter();
 
   const [beds, setBeds] = useState([]);
@@ -20,16 +20,10 @@ export default function SetupPage() {
   const [editingName, setEditingName] = useState("");
 
   useEffect(() => {
-    if (user === null) {
-      router.push("/login");
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
+    if (user && !userLoading) {
       loadBeds();
     }
-  }, [user]);
+  }, [user, userLoading]);
 
   async function loadBeds() {
     try {
@@ -89,6 +83,7 @@ export default function SetupPage() {
     }
   }
 
+  if (userLoading) return <p>Checking session...</p>;
   if (!user) return <p>Redirecting...</p>;
 
   return (
@@ -118,7 +113,9 @@ export default function SetupPage() {
       ) : (
         <>
           <h2 className="text-xl font-bold mb-1">Your beds</h2>
-          <p className="text-small text-blue-400 mb-4">Click on a bed name to update it.</p>
+          <p className="text-small text-blue-400 mb-4">
+            Click on a bed name to update it.
+          </p>
           <div className="flex flex-wrap gap-2">
             {beds.map((bed) => (
               <div

@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useUser } from "@/components/AuthProvider";
 import EntryForm from "@/components/EntryForm";
 import EntryList from "@/components/EntryList";
 import { fetchBeds } from "@/lib/beds";
+import useRequireAuth from "@/hooks/useRequireAuth";
 import {
   fetchEntries,
   createEntry,
@@ -16,7 +16,7 @@ import {
 import { toast } from "sonner";
 
 export default function AppPage() {
-  const { user, userLoading } = useUser();
+  const { user, userLoading } = useRequireAuth();
   const router = useRouter();
 
   const [entries, setEntries] = useState([]);
@@ -32,20 +32,23 @@ export default function AppPage() {
 
   // Fetch beds when component mounts
   useEffect(() => {
-    fetchBeds()
-      .then(setBeds)
-      .catch((err) => console.error("Failed to fetch beds:", err));
-  }, []);
+    if (user && !userLoading) {
+      fetchBeds()
+        .then(setBeds)
+        .catch((err) => console.error("Failed to fetch beds:", err));
+    }
+  }, [user, userLoading]);
 
   // Fetch entries when user and beds are available
   useEffect(() => {
-    if (!user || beds.length === 0) return;
+    if (!user) return;
 
     const loadEntries = async () => {
       try {
         const data = await fetchEntries(user);
         const entriesWithBedNames = data.map((entry) => {
-          const bedName = beds.find((bed) => bed.id === entry.bed_id)?.name ?? null;
+          const bedName =
+            beds.find((bed) => bed.id === entry.bed_id)?.name ?? null;
           return { ...entry, bed: bedName };
         });
         setEntries(entriesWithBedNames);
@@ -65,13 +68,14 @@ export default function AppPage() {
   }
 
   // Still not logged in? Don’t render anything (router push already triggered above)
-  if (!user) return null;
+  if (!user) return <p>Redirecting...</p>;
 
   const refreshEntries = async () => {
     try {
       const data = await fetchEntries(user);
       const entriesWithBedNames = data.map((entry) => {
-        const bedName = beds.find((bed) => bed.id === entry.bed_id)?.name ?? null;
+        const bedName =
+          beds.find((bed) => bed.id === entry.bed_id)?.name ?? null;
         return { ...entry, bed: bedName };
       });
       setEntries(entriesWithBedNames);

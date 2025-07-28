@@ -108,8 +108,10 @@ export default function EntryList({
         <div
           key={entry.id}
           className={`p-4 rounded shadow transition-colors ${
-            entry.type === "todo" && entry.completed
-              ? "bg-green-100 text-green-800"
+            entry.type === "todo"
+              ? entry.completed
+                ? "bg-green-100 text-green-800"
+                : "bg-orange-200" // pale orange if NOT completed
               : "bg-gray-100"
           }`}
         >

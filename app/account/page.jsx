@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import useRequireAuth from "@/hooks/useRequireAuth";
 import AvatarUploader from "@/components/AvatarUploader";
+import {
+  handleProfileSave as saveProfile,
+  handlePasswordChange as changePassword,
+  handleDeleteAccount as deleteAccount,
+  handleEmailChange as changeEmail,
+} from "@/lib/account/profileActions";
 import { toast } from "sonner";
 
 export default function AccountPage() {
-  const [user, setUser] = useState(null);
+  const { user, userLoading } = useRequireAuth();
   const [profile, setProfile] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -18,26 +25,73 @@ export default function AccountPage() {
 
   const [showUploader, setShowUploader] = useState(false);
 
+  const [newEmail, setNewEmail] = useState("");
+  const [showEmailForm, setShowEmailForm] = useState(false);
+
   useEffect(() => {
-    const getUserData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+    const getProfile = async () => {
+      const { data: profileData, error } = await supabase
+        .from("profiles")
+        .select("first_name, username, avatar_url")
+        .eq("id", user.id)
+        .single();
 
-      if (user) {
-        const { data: profileData, error } = await supabase
-          .from("profiles")
-          .select("first_name, username, avatar_url")
-          .eq("id", user.id)
-          .single();
-
-        if (!error) setProfile(profileData);
-      }
+      if (!error) setProfile(profileData);
     };
 
-    getUserData();
-  }, []);
+    if (user) getProfile();
+  }, [user]);
+
+  // useEffect(() => {
+  //   const syncEmailIfNeeded = async () => {
+  //     if (user && profile && user.email !== profile.email) {
+  //       const { error } = await supabase
+  //         .from("profiles")
+  //         .update({ email: user.email })
+  //         .eq("id", user.id);
+
+  //       if (error) {
+  //         console.error("Failed to sync profile email:", error.message);
+  //       } else {
+  //         setProfile((prev) => ({ ...prev, email: user.email }));
+  //         toast.success("Profile email synced.");
+  //       }
+  //     }
+  //   };
+
+  //   syncEmailIfNeeded();
+  // }, [user, profile]);
+
+  useEffect(() => {
+  const syncEmailIfNeeded = async () => {
+    const { data, error } = await supabase.auth.getUser(); // get *fresh* user
+    if (error) {
+      console.error("Error refreshing user session:", error.message);
+      return;
+    }
+
+    const freshEmail = data.user.email;
+
+    if (profile && profile.email !== freshEmail) {
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ email: freshEmail })
+        .eq("id", data.user.id);
+
+      if (updateError) {
+        console.error("Failed to update profile email:", updateError.message);
+        toast.error("Couldn't sync email with profile.");
+      } else {
+        setProfile((prev) => ({ ...prev, email: freshEmail }));
+        toast.success("Email synced with profile!");
+      }
+    }
+  };
+
+  if (user && profile) {
+    syncEmailIfNeeded();
+  }
+}, [user, profile]);
 
   const startEditing = () => {
     setEditName(profile.first_name);
@@ -46,124 +100,46 @@ export default function AccountPage() {
     setIsEditing(true);
   };
 
-  const handleProfileSave = async () => {
-    setSaving(true);
-    setErrorMsg("");
+  const handleProfileSave = () =>
+    saveProfile({
+      user,
+      profile,
+      editName,
+      editUsername,
+      setSaving,
+      setErrorMsg,
+      setIsEditing,
+      setProfile,
+      toast,
+    });
 
-    const trimmedName = editName.trim();
-    const trimmedUsername = editUsername.trim();
+  const handlePasswordChange = () =>
+    changePassword({
+      newPassword,
+      setErrorMsg,
+      setNewPassword,
+      setShowPasswordForm,
+      toast,
+    });
 
-    // Check for username conflict
-    const { data: existing, error: lookupError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", trimmedUsername)
-      .neq("id", user.id)
-      .single();
+  const handleDeleteAccount = () => deleteAccount({ user, setErrorMsg, toast });
 
-    if (existing) {
-      setErrorMsg("Username is already taken.");
-      setSaving(false);
-      return;
-    }
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ first_name: trimmedName, username: trimmedUsername })
-      .eq("id", user.id);
-
-    if (!error) {
-      setProfile({
-        ...profile,
-        first_name: trimmedName,
-        username: trimmedUsername,
-      });
-      setIsEditing(false);
-      setErrorMsg("");
-      toast.success("Username updated!");
-    } else {
-      setErrorMsg("Update failed: " + error.message);
-      toast.error("Failed to update Username.");
-    }
-
-    setSaving(false);
-  };
-
-  const handlePasswordChange = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      setErrorMsg("Password must be at least 6 characters.");
-      return;
-    }
-
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-
-    if (error) {
-      setErrorMsg("Failed to update password: " + error.message);
-      toast.error("Failed to update password.");
-    } else {
-      setErrorMsg("");
-      toast.success("Password updated!");
-      setNewPassword("");
-      setShowPasswordForm(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete your account? This cannot be undone."
-    );
-    if (!confirmed) return;
-
-    const { error } = await supabase.rpc("delete_current_user");
-
-    if (error) {
-      toast.error("Failed to delete account.");
-    } else {
-      setErrorMsg("");
-      toast.success("Account deleted.");
-      // Clear auth session so no ghost user remains
-      if (!user) {
-        console.error("No valid user session.");
-        return;
-      }
-      await supabase.auth.signOut();
-      window.location.href = "/"; // Or redirect to login
-    }
-  };
+  const handleEmailChange = () => changeEmail({
+  newEmail,
+  setErrorMsg,
+  setNewEmail,
+  setShowEmailForm,
+  toast,
+});
 
   if (!user || !profile)
     return <div className="p-6 text-center">Loading...</div>;
 
   const joinDate = new Date(user.created_at).toLocaleDateString();
 
-  const uploadAvatar = async (file) => {
-    if (!user) return;
-
-    const fileExt = file.name.split(".").pop();
-    const fileName = `${user.id}.${fileExt}`;
-    const filePath = `${fileName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from("avatars")
-      .upload(filePath, file, { upsert: true });
-
-    if (uploadError) {
-      console.error("Upload failed:", uploadError.message);
-      toast.error("Avatar upload failed.");
-      return;
-    }
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(filePath);
-
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ avatar_url: data.publicUrl })
-      .eq("id", user.id);
-
-    if (!updateError) {
-      setProfile((prev) => ({ ...prev, avatar_url: data.publicUrl }));
-    }
-  };
+  if (userLoading)
+    return <div className="p-6 text-center">Checking session…</div>;
+  if (!user) return <div className="p-6 text-center">Redirecting…</div>;
 
   return (
     <div className="mt-10 p-6 bg-white rounded-xl shadow-md space-y-6">
@@ -276,11 +252,29 @@ export default function AccountPage() {
         )}
 
         <button
-          onClick={() => alert("Change Email not wired up yet")}
+          onClick={() => setShowEmailForm(!showEmailForm)}
           className="w-full py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition"
         >
-          Change Email
+          {showEmailForm ? "Cancel Email Change" : "Change Email"}
         </button>
+
+        {showEmailForm && (
+          <div className="space-y-2">
+            <input
+              type="email"
+              placeholder="New email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg"
+            />
+            <button
+              onClick={handleEmailChange}
+              className="w-full py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            >
+              Save New Email
+            </button>
+          </div>
+        )}
 
         <button
           onClick={handleDeleteAccount}

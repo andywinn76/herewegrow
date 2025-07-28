@@ -8,7 +8,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [userLoading, setUserLoading] = useState(true); // renamed for clarity
+  const [userLoading, setUserLoading] = useState(true); 
   const router = useRouter();
 
   useEffect(() => {
